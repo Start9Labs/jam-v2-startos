@@ -18,9 +18,10 @@ export const setDependencies = sdk.setupDependencies(async ({ effects }) => {
   return {
     bitcoind: {
       kind: 'running',
-      // joinmarket-ng states Bitcoin Core v30+; it gates on no version itself,
-      // but nothing upstream claims support below that.
-      versionRange: '(>=30.3:8 && <31) || >=31.1:8',
+      // Per-major, not one floor: a bare `>=28.4:17` would also admit 29.0 and
+      // 30.0, which sort above it but predate the revision those lines need.
+      versionRange:
+        '(>=28.4:17 && <29) || (>=29.4:4 && <30) || (>=30.3:4 && <31) || >=31.1:4',
       healthChecks: ['bitcoind', 'sync-progress'],
     },
   }
