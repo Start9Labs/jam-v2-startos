@@ -1,16 +1,18 @@
 <p align="center">
-  <img src="icon.svg" alt="Jam V2 Logo" width="21%">
+  <img src="icon.svg" alt="Jam Logo" width="21%">
 </p>
 
 # Jam V2 on StartOS
 
-> **Upstream docs:** <https://jamdocs.org/>
->
 > Everything not listed in this document should behave the same as upstream
 > Jam. If a feature, setting, or behavior is not mentioned here, the upstream
-> documentation is accurate and fully applicable.
+> documentation is accurate and fully applicable — see the Documentation
+> section of `instructions.md` for links.
 
-[Jam](https://github.com/joinmarket-webui/jam) is a web interface for JoinMarket, a CoinJoin implementation that lets users improve the privacy of their bitcoin by making collaborative transactions. This package wraps the upstream `jam-standalone-ng` image, which bundles the web UI, the [joinmarket-ng](https://github.com/joinmarket-ng/joinmarket-ng) backend, an orderbook watcher, nginx and Tor.
+[Jam](https://github.com/joinmarket-webui/jam) is a web interface for JoinMarket, the CoinJoin implementation. This package runs the standalone image — Jam, JoinMarket, and their own Tor daemon in one container — generates the login credential, and requires an archival Bitcoin node.
+
+- **Upstream repo:** <https://github.com/joinmarket-webui/jam>
+- **Wrapper repo:** <https://github.com/Start9Labs/jam-v2-startos>
 
 ---
 
@@ -18,140 +20,154 @@
 
 - [Image and Container Runtime](#image-and-container-runtime)
 - [Volume and Data Layout](#volume-and-data-layout)
-- [Installation and First-Run Flow](#installation-and-first-run-flow)
-- [Configuration Management](#configuration-management)
-- [Network Access and Interfaces](#network-access-and-interfaces)
-- [Actions (StartOS UI)](#actions-startos-ui)
-- [Backups and Restore](#backups-and-restore)
-- [Health Checks](#health-checks)
+- [File Models](#file-models)
 - [Dependencies](#dependencies)
+- [Network Access and Interfaces](#network-access-and-interfaces)
+- [Installation and First-Run Flow](#installation-and-first-run-flow)
+- [Actions](#actions)
+- [Tasks](#tasks)
+- [Health Checks](#health-checks)
+- [Backups and Restore](#backups-and-restore)
 - [Limitations and Differences](#limitations-and-differences)
-- [What Is Unchanged from Upstream](#what-is-unchanged-from-upstream)
-- [Contributing](#contributing)
 - [Quick Reference for AI Consumers](#quick-reference-for-ai-consumers)
 
 ---
 
 ## Image and Container Runtime
 
-| | |
-| --- | --- |
-| Image source | Upstream `ghcr.io/joinmarket-webui/jam-standalone-ng`, unmodified |
-| Architectures | `x86_64`, `aarch64` |
-| Entrypoint | Upstream default, via `sdk.useEntrypoint()` with `runAsInit: true` |
-| Process supervision | s6-overlay v3 |
-| User | root |
+The upstream standalone image is used unmodified, run as the container's init process because it supervises several processes of its own.
 
-The image supervises four processes: `nginx` (serves the UI and proxies the API), `jmwalletd` (the JoinMarket wallet daemon), `obwatcher` (the orderbook watcher), and `tor`.
+| Property      | Value                                                    |
+| ------------- | -------------------------------------------------------- |
+| Image         | `ghcr.io/joinmarket-webui/jam-standalone-ng`             |
+| Architectures | x86_64, aarch64                                          |
+| Entrypoint    | Upstream default, run as init                            |
+| Subcontainer  | `jam-sub` — the `jam` daemon, and the one to `attach` to |
 
-Tor runs **inside** this container. The package does not depend on the StartOS Tor service, because JoinMarket's maker needs a Tor control port to publish its own onion service, which a shared SOCKS proxy does not provide.
+Inside that one container the image runs nginx serving the web UI, the JoinMarket wallet daemon behind it, and **its own Tor daemon** — Jam speaks to the JoinMarket peer network over Tor, and does not use the StartOS Tor service.
 
 ## Volume and Data Layout
 
-| Volume | Subpath | Mount point | Purpose |
-| --- | --- | --- | --- |
-| `main` | `./data` | `/root/.joinmarket-ng` | Wallets, fidelity bonds, TLS material, history |
-| `main` | `./store.json` | not mounted | StartOS-generated web UI password |
-| `tor` | — | `/var/lib/tor` | Tor consensus cache and control cookie |
-| Bitcoin's `main` | — | `/mnt/bitcoind` (read-only) | Bitcoin's RPC cookie |
+Two volumes, and the split inside `main` is deliberate.
 
-`store.json` deliberately sits at the root of `main` rather than under `./data`, so the container never sees the generated password on disk — it reaches Jam only as an environment variable.
+| Volume | Mount Point                       | Purpose                        |
+| ------ | --------------------------------- | ------------------------------ |
+| `main` | `./data` → `/root/.joinmarket-ng` | JoinMarket's wallets and state |
+| `tor`  | `/var/lib/tor`                    | The bundled Tor daemon's state |
 
-## Installation and First-Run Flow
+**Only the `data` subdirectory of `main` is mounted.** `store.json` sits at the volume root, outside that subpath, so the generated password is never visible to Jam itself.
 
-Upstream expects the operator to supply the web UI credentials and a Bitcoin RPC endpoint by hand. This package handles both:
+Bitcoin's data directory is mounted **read-only** at `/mnt/bitcoind`, which is how Jam reads the RPC cookie.
 
-1. A **critical task** requires the user to run the **Create Password** action before the service will start. Nothing is seeded at install time, so there is no window in which a default password is live.
-2. A **critical task** on Bitcoin requires `prune=0`, because joinmarket-ng rescans from genesis when importing a wallet descriptor.
+## File Models
 
-Bitcoin RPC needs no setup: Bitcoin's data directory is mounted read-only and Jam authenticates with its `.cookie`, so there are no credentials to generate, store, or rotate.
+One model, holding one value.
 
-The Bitcoin RPC address is resolved at runtime with `sdk.host.getBridgeAddress` (`ssl: false`, since bitcoind publishes its RPC binding as `protocol: 'http'` and therefore carries both a plaintext and a TLS address). Both the host and the assigned port come from that lookup — neither is hardcoded.
+| File         | Format | Modelled                | Written by              |
+| ------------ | ------ | ----------------------- | ----------------------- |
+| `store.json` | JSON   | Yes — `FileHelper.json` | The Set Password action |
 
-## Configuration Management
+`appPassword` is the credential for Jam's basic auth. The username is fixed at `jam`; only the password is generated, and nothing but the action writes it.
 
-| StartOS-Managed | Upstream-Managed |
-| --- | --- |
-| Web UI credentials (`APP_USER`, `APP_PASSWORD`) | Wallet creation, jars, and all coin control |
-| Bitcoin RPC endpoint and cookie path | Maker offer parameters, fee limits |
-| Whether the entrypoint waits for Bitcoin | Scheduler and tumbler settings |
-| | Everything else in the Jam UI |
+**No configuration file reaches the application.** Jam is configured by environment, composed on each start:
 
-StartOS-managed environment variables passed to the container:
+| Variable                   | Value                                                |
+| -------------------------- | ---------------------------------------------------- |
+| `APP_USER`, `APP_PASSWORD` | The fixed username and the generated password        |
+| `BITCOIN__RPC_URL`         | Bitcoin's RPC address, resolved from its own binding |
+| `BITCOIN__RPC_COOKIE_FILE` | The cookie path inside the read-only mount           |
+| `WAIT_FOR_BITCOIND`        | `false` — an override, see below                     |
 
-- `APP_USER`, `APP_PASSWORD` — nginx basic auth for the web UI
-- `BITCOIN__RPC_URL` — resolved from the bridge at runtime
-- `BITCOIN__RPC_COOKIE_FILE` — points into the read-only Bitcoin mount
-- `WAIT_FOR_BITCOIND` — set to `false`
+`WAIT_FOR_BITCOIND` is the one departure from how the image would behave on its own. Left at its default, the entrypoint blocks until Bitcoin is reachable and synced — during which nothing binds a port at all, so the web UI is simply unreachable with no explanation. Switching it off lets the UI come up and report the wait through the declared dependency check instead.
 
-`WAIT_FOR_BITCOIND` is disabled on purpose. When enabled, the entrypoint polls Bitcoin before starting s6, so no port is open and the service appears dead for as long as Bitcoin is syncing. Leaving it off lets the UI come up, and the declared `sync-progress` dependency health check reports sync state instead.
-
-joinmarket-ng also reads a `config.toml` from its data directory if one exists. This package does not write one, so any file the user places there takes effect as upstream documents.
-
-## Network Access and Interfaces
-
-| Interface | Port | Protocol | Purpose |
-| --- | --- | --- | --- |
-| `ui` | 80 | HTTP | Jam web interface |
-
-`jmwalletd` (28183) and the orderbook watcher (8000) listen on loopback inside the container and are reached through nginx; they are not exposed as StartOS interfaces.
-
-The web UI is protected by HTTP basic auth inside the container, because Jam's own API is unauthenticated until a wallet is unlocked.
-
-## Actions (StartOS UI)
-
-| Action | Purpose | Visibility | Availability | Output |
-| --- | --- | --- | --- | --- |
-| **Create Password** / **Reset Password** | Generates a new web UI password | Enabled | Any status | Username and password, password masked and copyable |
-
-The action's name and description change depending on whether a password has been set yet.
-
-## Backups and Restore
-
-`sdk.Backups.ofVolumes('main')` — wallets, fidelity bond registry, transaction history, and the generated web UI password in `store.json`.
-
-The `tor` volume is deliberately excluded: it holds only the Tor consensus cache, which is rebuilt on first start. The watch-only descriptor wallet that joinmarket-ng creates inside Bitcoin's own data directory is likewise not backed up here; it is reconstructed from the Jam wallet.
-
-## Health Checks
-
-| Check | Method | Reports |
-| --- | --- | --- |
-| **Web Interface** (daemon `ready`) | Port 80 listening | Whether nginx is serving |
-| **JoinMarket Daemon** | `curl` against `jmwalletd`'s `/api/v1/session` over loopback TLS | Whether the wallet daemon is answering |
-
-Both checks exist because the image's own startup ordering does not gate on readiness — nginx accepts connections before `jmwalletd` is listening, so port 80 alone would report healthy while the API is still down.
+The address is omitted rather than faked while Bitcoin is absent, and the package restarts when Bitcoin writes a **replacement** RPC cookie — but not when the cookie merely disappears, since that means Bitcoin is down. JoinMarket reads the cookie once, when it builds its settings, so a rotation has to restart it.
 
 ## Dependencies
 
-| Dependency | Required | Health checks | Purpose |
-| --- | --- | --- | --- |
-| Bitcoin | Yes | `bitcoind`, `sync-progress` | Blockchain data and transaction broadcast over RPC |
+One, required, and with a configuration requirement of its own.
 
-Bitcoin's `main` volume is mounted read-only at `/mnt/bitcoind` so Jam can read `.cookie` for RPC auth. joinmarket-ng reads that cookie once when it builds its settings, so `main.ts` watches the file and restarts the daemon when Bitcoin rotates it. The required version range is declared in `startos/dependencies.ts`.
+| Dependency | Kind      | Health checks               | Mount                      | Why                                     |
+| ---------- | --------- | --------------------------- | -------------------------- | --------------------------------------- |
+| Bitcoin    | `running` | `bitcoind`, `sync-progress` | `/mnt/bitcoind`, read-only | Chain data over RPC, and the RPC cookie |
 
-Bitcoin must be archival. Jam issues a full rescan when it imports a wallet descriptor, which a pruned node cannot serve.
+**Bitcoin must be archival, and the package raises a `critical` task on Bitcoin saying so** — see [Tasks](#tasks). JoinMarket rescans from genesis when it imports a wallet descriptor, which a pruned node refuses.
+
+Both health checks are required, not just "running": a node still syncing cannot answer the queries JoinMarket makes of it.
+
+## Network Access and Interfaces
+
+One interface. The JoinMarket daemon's own API is loopback-only inside the container and is never published.
+
+| Interface | Id   | Type | Port | Description           |
+| --------- | ---- | ---- | ---- | --------------------- |
+| Web UI    | `ui` | ui   | 80   | The Jam web interface |
+
+The port is bound on the `ui-multi` MultiHost and is not masked.
+
+## Installation and First-Run Flow
+
+Install generates nothing and starts nothing usable: **the service will not start until a password exists**, because `main` refuses to run without one. A `critical` task asks for it.
+
+Once that is done, two waits remain, neither of which is a fault:
+
+- **Bitcoin's sync**, reported through the dependency check rather than by a stalled service.
+- **JoinMarket's own startup**, which the second health check reports separately from the web UI's.
+
+Wallet creation happens inside Jam, after logging in with the username `jam` and the generated password.
+
+## Actions
+
+One action, which renames itself to match what running it will do.
+
+### Create / Reset Password
+
+Generates the password for Jam's basic auth. It is "Create Password" until one exists and "Reset Password" afterwards.
+
+- **What it changes:** `appPassword` in `store.json`.
+- **Cost:** seconds, then a restart — the credential is passed as environment.
+- **Repeat safety:** safe to re-run; each run generates a fresh password and invalidates the previous one.
+- **Outputs:** the fixed username and the new password, masked and copyable. It is not recoverable afterwards.
+
+This is the login for the Jam interface, not for a JoinMarket wallet — wallet passwords are set inside Jam and are not managed here.
+
+## Tasks
+
+Two tasks, and one of them appears on another service's page.
+
+| Task            | Raised on | Severity   | Raised when                       | Cleared when                                            |
+| --------------- | --------- | ---------- | --------------------------------- | ------------------------------------------------------- |
+| Create Password | this      | `critical` | At init, while no password is set | The action runs                                         |
+| Auto-Configure  | Bitcoin   | `critical` | Bitcoin has pruning enabled       | Bitcoin is set to archival; it returns if changed again |
+
+The Bitcoin task is `critical` there, not here, and nothing on Bitcoin's page explains which service asked for it. It carries the setting itself, so accepting it applies the change — but note what that change costs: turning pruning off on a node that was pruned means re-downloading the chain.
+
+## Health Checks
+
+Two checks, and the second exists because the first cannot be trusted alone.
+
+| Check                           | Method                                              |
+| ------------------------------- | --------------------------------------------------- |
+| `jam` "Web Interface"           | Port 80 is listening                                |
+| `jmwalletd` "JoinMarket Daemon" | An authenticated request to the wallet daemon's API |
+
+**nginx accepts connections before the JoinMarket daemon is up**, so the web-interface check reports healthy while the API behind it is still starting — which is exactly the window where the interface loads but nothing in it works. The second check probes the daemon directly and is the one to read when Jam is reachable but unresponsive.
+
+## Backups and Restore
+
+The `main` volume is copied wholesale — `sdk.Backups.ofVolumes('main')`. No dump step and nothing excluded.
+
+- **Included:** JoinMarket's wallets and state, and `store.json` with the login password.
+- **Excluded:** the `tor` volume, which holds only the bundled Tor daemon's consensus cache and is rebuilt on its own.
+- **Restore:** complete. The password comes back with the backup, so no task is raised. Bitcoin must be present, archival, and synced before Jam is usable again.
 
 ## Limitations and Differences
 
-1. **Beta software.** Jam 2.0 and the joinmarket-ng backend are both pre-release and under active development upstream.
-2. **This is a separate package from `jam`, not an upgrade of it.** joinmarket-ng uses a different wallet format from joinmarket-clientserver and upstream removed clientserver support entirely, so no migration is possible and the package ships under its own id. A user coming from the older Jam recovers from their seed phrase here.
-3. **Pruned Bitcoin nodes are not usable**, and the archival requirement is enforced with a critical task.
-4. **The UI login is HTTP basic auth**, not a Jam account. There is one user, `jam`, and only the password can be changed.
-5. **No `config.toml` is generated.** Settings outside the environment variables listed above must be set through the Jam UI or by placing a `config.toml` in the data directory.
-
-## What Is Unchanged from Upstream
-
-- Wallet creation, recovery, and seed handling
-- Jars, coin control, freezing and unfreezing UTXOs
-- Sending collaborative transactions, sweeps, and the scheduler
-- The Earn tab, maker offers, and fidelity bonds
-- The orderbook view
-- Tor connectivity to the JoinMarket directory nodes
-- The log viewer and all other in-app features
-
-## Contributing
-
-Build and development workflow follow the StartOS packaging guide: <https://docs.start9.com/packaging>. Keep `README.md`, `instructions.md`, and `AGENTS.md` in sync with any change to user-visible behavior or package structure.
+1. **Bitcoin must be archival.** JoinMarket rescans from genesis on wallet import, which a pruned node refuses — hence the task on Bitcoin.
+2. **The service will not start without a password**, by design rather than defaulting to one.
+3. **Jam runs its own Tor daemon** rather than using the StartOS Tor service, and its state is not backed up.
+4. **The login username is fixed at `jam`.** Only the password is configurable, and only by regenerating it.
+5. **The web UI can be up before JoinMarket is.** Read the second health check, not the first.
+6. **No riscv64 build.** x86_64 and aarch64 only.
 
 ---
 
@@ -159,27 +175,33 @@ Build and development workflow follow the StartOS packaging guide: <https://docs
 
 ```yaml
 package_id: jam-v2
-architectures: [x86_64, aarch64]
+image: ghcr.io/joinmarket-webui/jam-standalone-ng
+architectures:
+  - x86_64
+  - aarch64
+subcontainers:
+  - jam-sub
 volumes:
-  main: /root/.joinmarket-ng # subpath ./data; store.json at volume root, unmounted
+  main: ./data → /root/.joinmarket-ng (store.json sits at the volume root, unmounted)
   tor: /var/lib/tor
-mounted_dependency_volumes:
-  bitcoind.main: /mnt/bitcoind # read-only, for .cookie
-ports:
-  ui: 80
-internal_ports:
-  jmwalletd: 28183
-  obwatcher: 8000
-dependencies: [bitcoind]
+file_models:
+  - store.json
 startos_managed_env_vars:
   - APP_USER
   - APP_PASSWORD
+  - WAIT_FOR_BITCOIND
   - BITCOIN__RPC_URL
   - BITCOIN__RPC_COOKIE_FILE
-  - WAIT_FOR_BITCOIND
+dependencies:
+  - bitcoind # required, archival; mounted read-only at /mnt/bitcoind
+interfaces:
+  ui: { type: ui, port: 80 }
 actions:
-  - set-password
+  - set-password # renames itself to "Create Password" when unset
+tasks:
+  - { action: set-password, severity: critical }
+  - { action: autoconfig, severity: critical } # on bitcoind: pruning off
 health_checks:
-  - jam # daemon ready: port 80
-  - jmwalletd # jmwalletd /api/v1/session
+  - jam # displayed "Web Interface"
+  - jmwalletd # displayed "JoinMarket Daemon"
 ```
