@@ -4,6 +4,7 @@ Jam runs CoinJoins against a live market of other traders. Your wallet seed is c
 
 ## Documentation
 
+- [Start9 Bitcoin Guides](https://docs.start9.com/bitcoin-guides/) — Bitcoin wallets on StartOS, and archival versus pruned nodes.
 - [Jam documentation](https://jamdocs.org/) — the upstream user guide, including the FAQ and a walkthrough of the sending and earning flows.
 
 ## What you get on StartOS
