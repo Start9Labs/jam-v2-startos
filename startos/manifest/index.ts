@@ -15,7 +15,7 @@ export const manifest = setupManifest({
     jam: {
       source: {
         dockerTag:
-          'ghcr.io/joinmarket-webui/jam-standalone-ng:v2.0.0-beta.3-ng-v0.37.1',
+          'ghcr.io/joinmarket-webui/jam-standalone-ng:v2.0.0-beta.4-ng-v0.40.0',
       },
       arch: ['x86_64', 'aarch64'],
     },
