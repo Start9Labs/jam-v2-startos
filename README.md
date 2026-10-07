@@ -90,7 +90,7 @@ One, required, and with a configuration requirement of its own.
 | ---------- | --------- | --------------------------- | -------------------------- | --------------------------------------- |
 | Bitcoin    | `running` | `bitcoind`, `sync-progress` | `/mnt/bitcoind`, read-only | Chain data over RPC, and the RPC cookie |
 
-**Bitcoin must be archival, and the package raises a `critical` task on Bitcoin saying so** — see [Tasks](#tasks). JoinMarket rescans from genesis when it imports a wallet descriptor, which a pruned node refuses.
+**Bitcoin must be archival with its wallet enabled, and the package raises a `critical` task on Bitcoin to enforce both settings** — see [Tasks](#tasks). JoinMarket uses Bitcoin's descriptor-wallet RPCs and rescans from genesis when it imports a wallet descriptor, which a pruned node refuses.
 
 Both health checks are required, not just "running": a node still syncing cannot answer the queries JoinMarket makes of it.
 
@@ -135,10 +135,10 @@ This is the login for the Jam interface, not for a JoinMarket wallet — wallet 
 
 Two tasks, and one of them appears on another service's page.
 
-| Task            | Raised on | Severity   | Raised when                       | Cleared when                                            |
-| --------------- | --------- | ---------- | --------------------------------- | ------------------------------------------------------- |
-| Create Password | this      | `critical` | At init, while no password is set | The action runs                                         |
-| Auto-Configure  | Bitcoin   | `critical` | Bitcoin has pruning enabled       | Bitcoin is set to archival; it returns if changed again |
+| Task            | Raised on | Severity   | Raised when                                        | Cleared when                                                                      |
+| --------------- | --------- | ---------- | -------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Create Password | this      | `critical` | At init, while no password is set                  | The action runs                                                                   |
+| Auto-Configure  | Bitcoin   | `critical` | Bitcoin has pruning enabled or its wallet disabled | Bitcoin is archival with its wallet enabled; it returns if either setting changes |
 
 The Bitcoin task is `critical` there, not here, and nothing on Bitcoin's page explains which service asked for it. It carries the setting itself, so accepting it applies the change — but note what that change costs: turning pruning off on a node that was pruned means re-downloading the chain.
 
@@ -159,11 +159,11 @@ The `main` volume is copied wholesale — `sdk.Backups.ofVolumes('main')`. No du
 
 - **Included:** JoinMarket's wallets and state, and `store.json` with the login password.
 - **Excluded:** the `tor` volume, which holds only the bundled Tor daemon's consensus cache and is rebuilt on its own.
-- **Restore:** complete. The password comes back with the backup, so no task is raised. Bitcoin must be present, archival, and synced before Jam is usable again.
+- **Restore:** complete. The password comes back with the backup, so no task is raised. Bitcoin must be present, archival, and synced with its wallet enabled before Jam is usable again.
 
 ## Limitations and Differences
 
-1. **Bitcoin must be archival.** JoinMarket rescans from genesis on wallet import, which a pruned node refuses — hence the task on Bitcoin.
+1. **Bitcoin must be archival with its wallet enabled.** JoinMarket needs Bitcoin's descriptor-wallet RPCs and rescans from genesis on wallet import, which a pruned node refuses — hence the task on Bitcoin.
 2. **The service will not start without a password**, by design rather than defaulting to one.
 3. **Jam runs its own Tor daemon** rather than using the StartOS Tor service, and its state is not backed up.
 4. **The login username is fixed at `jam`.** Only the password is configurable, and only by regenerating it.
@@ -201,7 +201,7 @@ actions:
   - set-password # renames itself to "Create Password" when unset
 tasks:
   - { action: set-password, severity: critical }
-  - { action: autoconfig, severity: critical } # on bitcoind: pruning off
+  - { action: autoconfig, severity: critical } # on bitcoind: pruning off, wallet enabled
 health_checks:
   - jam # displayed "Web Interface"
   - jmwalletd # displayed "JoinMarket Daemon"
