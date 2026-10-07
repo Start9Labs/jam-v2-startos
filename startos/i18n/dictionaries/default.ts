@@ -27,7 +27,7 @@ const dict = {
   'This replaces your Jam password with a new random one. The current password stops working, and Jam restarts if it is running.': 20,
 
   // dependencies.ts
-  'Jam requires an archival Bitcoin node': 18,
+  'Jam requires an archival Bitcoin node with its wallet enabled': 18,
 } as const
 
 /**
