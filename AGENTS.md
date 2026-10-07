@@ -18,16 +18,23 @@ Freshly scaffolded? Work the
 guide page, not a file in this repo — read it, don't copy it in.
 
 Keep `README.md` (technical reference for an AI support or administering agent) and
-`instructions.md` (end-user docs) in sync with your changes.
+`instructions.md` (end-user docs) in sync with your changes. This file restates neither:
+whoever changes the package has both, so it carries only what they don't — repo mechanics,
+a change that looks right and is not, where the next thing gets added, a naming trap, a
+build or test invocation particular to this repo.
 
-**Bugs and feature requests are GitHub issues on this repo** — file them as you find them.
+**Fix a defect you spot rather than reporting it** — you have the package open and the
+context to be sure. File **a GitHub issue on this repo** only when the call isn't yours to
+make: you can't pin the cause down, two defensible fixes exist, or it's too large to ride on
+the work in hand. An open issue is a report, not a queue — implement one when you're asked
+to or when it's labelled `Approved`, then close it with `Closes #<n>`.
+
 Don't record work in the repo instead: no `TODO.md`, no `NOTES.md`, no `PLAN.md`. What you
 verified, tried, and decided belongs in the commit message and the PR body.
 
 ## This repo
 
-- **Only `main`'s `./data` subpath is mounted, and that is what keeps `store.json` out of the container.** The login password lives at the volume root; mounting the volume root instead would hand it to Jam.
-- **`WAIT_FOR_BITCOIND` must stay `false`.** Left at the image's default the entrypoint blocks before binding any port, so the UI is unreachable with no explanation while Bitcoin syncs. The declared `sync-progress` dependency check is what communicates that wait instead.
-- **The `jmwalletd` health check is not redundant with the port check.** nginx accepts connections before the wallet daemon is listening, so port 80 alone reports healthy while the API is still down. Keep both.
-- **Bitcoin must be archival, and the task on `bitcoind` is how that is enforced** — joinmarket-ng rescans from genesis on wallet-descriptor import, which a pruned node rejects. `when: input-not-matches, once: false` is what makes it re-raise if pruning is turned back on.
-- **The bundled Tor daemon is Jam's own**, not the StartOS Tor service, and its volume is deliberately excluded from backups — it holds only the consensus cache.
+- **Mount only `main`'s `./data` subpath into the container** — the volume root holds `store.json`, and with it the login password.
+- **Keep `WAIT_FOR_BITCOIND` at `false`** — the image's default blocks before binding any port, leaving the UI unreachable while Bitcoin syncs.
+- **Keep the `jmwalletd` health check beside the port check** — nginx accepts connections before the wallet daemon listens.
+- **Keep `once: false` on the Bitcoin archival task** — it is what re-raises the task if pruning is turned back on.

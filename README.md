@@ -125,6 +125,7 @@ Generates the password for Jam's basic auth. It is "Create Password" until one e
 
 - **What it changes:** `appPassword` in `store.json`.
 - **Cost:** seconds, then a restart — the credential is passed as environment.
+- **Confirmation:** none on first creation. Once a password exists, StartOS asks for confirmation first, warning that the current password stops working and that Jam restarts if it is running.
 - **Repeat safety:** safe to re-run; each run generates a fresh password and invalidates the previous one.
 - **Outputs:** the fixed username and the new password, masked and copyable. It is not recoverable afterwards.
 
