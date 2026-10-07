@@ -16,7 +16,7 @@ Jam runs CoinJoins against a live market of other traders. Your wallet seed is c
 ## Getting set up
 
 1. **Install Bitcoin first.** Jam reads the blockchain and broadcasts transactions through it, and will not start until Bitcoin is installed and running.
-2. **Leave Bitcoin archival.** Jam scans the whole chain when it imports a wallet, which a pruned node cannot serve. StartOS will prompt you to turn pruning off if it is on — expect to need roughly 1 TB of free disk for the Bitcoin node.
+2. **Leave Bitcoin archival with its wallet enabled.** Jam uses Bitcoin's wallet and scans the whole chain when it imports one, which a pruned node cannot serve. StartOS will prompt you to turn pruning off or enable Bitcoin's wallet if needed — expect to need roughly 1 TB of free disk for the Bitcoin node.
 3. **Run the Create Password task.** StartOS asks you for this before Jam will start. It generates the password for the Jam web interface and shows it to you once — copy it somewhere safe. Jam connects to Bitcoin on its own, so there are no RPC credentials to set up.
 4. **Open the Web UI** and log in with the username `jam` and the password from step 3.
 5. **Create or recover a wallet.** Jam will show you a seed phrase — write it down and store it offline. Recovering an existing JoinMarket wallet works here too.
