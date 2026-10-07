@@ -21,6 +21,7 @@ export default {
     16: 'Contraseña',
     18: 'Jam requiere un nodo Bitcoin de archivo',
     19: 'El demonio de JoinMarket no está listo',
+    20: 'Esto sustituye tu contraseña de Jam por una nueva aleatoria. La contraseña actual deja de funcionar y Jam se reinicia si está en ejecución.',
   },
   de_DE: {
     0: 'Starte Jam!',
@@ -42,6 +43,7 @@ export default {
     16: 'Passwort',
     18: 'Jam benötigt einen archivierenden Bitcoin-Knoten',
     19: 'Der JoinMarket-Dienst ist nicht bereit',
+    20: 'Dies ersetzt dein Jam-Passwort durch ein neues, zufälliges. Das aktuelle Passwort funktioniert dann nicht mehr, und Jam startet neu, falls es läuft.',
   },
   pl_PL: {
     0: 'Uruchamianie Jam!',
@@ -63,6 +65,7 @@ export default {
     16: 'Hasło',
     18: 'Jam wymaga archiwalnego węzła Bitcoin',
     19: 'Demon JoinMarket nie jest gotowy',
+    20: 'To zastępuje twoje hasło do Jam nowym, losowym. Obecne hasło przestaje działać, a Jam uruchamia się ponownie, jeśli jest uruchomiony.',
   },
   fr_FR: {
     0: 'Démarrage de Jam !',
@@ -71,7 +74,7 @@ export default {
     3: "L'interface web est prête",
     4: "L'interface web n'est pas prête",
     5: 'Démon JoinMarket',
-    6: "Le démon JoinMarket n'est pas prêt",
+    6: 'Le démon JoinMarket est prêt',
     7: 'Interface web',
     8: "L'interface web de Jam",
     9: 'Créer un mot de passe',
@@ -84,5 +87,6 @@ export default {
     16: 'Mot de passe',
     18: "Jam nécessite un nœud Bitcoin d'archive",
     19: "Le démon JoinMarket n'est pas prêt",
+    20: "Cela remplace votre mot de passe Jam par un nouveau mot de passe aléatoire. Le mot de passe actuel cesse de fonctionner, et Jam redémarre s'il est en cours d'exécution.",
   },
 } satisfies Record<string, LangDict>

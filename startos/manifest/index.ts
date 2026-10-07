@@ -1,5 +1,5 @@
 import { setupManifest } from '@start9labs/start-sdk'
-import { depBitcoind, long, short } from './i18n'
+import { long, short } from './i18n'
 
 export const manifest = setupManifest({
   id: 'jam-v2',
@@ -18,16 +18,7 @@ export const manifest = setupManifest({
           'ghcr.io/joinmarket-webui/jam-standalone-ng:v2.0.0-beta.4-ng-v0.40.0',
       },
       arch: ['x86_64', 'aarch64'],
-    },
-  },
-  dependencies: {
-    bitcoind: {
-      description: depBitcoind,
-      optional: false,
-      metadata: {
-        title: 'Bitcoin',
-        icon: 'https://raw.githubusercontent.com/Start9Labs/bitcoin-core-startos/master/icon.svg',
-      },
+      emulateMissing: false,
     },
   },
 })

@@ -39,7 +39,7 @@ The **Send** tab performs a collaborative transaction. You choose the number of 
 
 ### Actions
 
-- **Create Password / Reset Password** — generates a new password for the web interface and shows it to you. Run it if you lose the password or want to rotate it.
+- **Create Password / Reset Password** — generates a new password for the web interface and shows it to you. Run it if you lose the password or want to rotate it. Resetting asks you to confirm first, because the old password stops working and Jam restarts.
 
 ## Limitations
 

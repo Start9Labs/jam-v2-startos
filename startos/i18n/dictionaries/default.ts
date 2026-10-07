@@ -24,6 +24,7 @@ const dict = {
   'Your Jam password has been set. Use the credentials below to log in.': 14,
   Username: 15,
   Password: 16,
+  'This replaces your Jam password with a new random one. The current password stops working, and Jam restarts if it is running.': 20,
 
   // dependencies.ts
   'Jam requires an archival Bitcoin node': 18,

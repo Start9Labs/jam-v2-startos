@@ -18,7 +18,11 @@ export const setPassword = sdk.Action.withoutInput(
       description: hasPassword
         ? i18n('Reset your Jam password')
         : i18n('Create your Jam password'),
-      warning: null,
+      warning: hasPassword
+        ? i18n(
+            'This replaces your Jam password with a new random one. The current password stops working, and Jam restarts if it is running.',
+          )
+        : null,
       allowedStatuses: 'any',
       group: null,
       visibility: 'enabled',
