@@ -9,10 +9,10 @@ const bitcoind = sdk.Dependency.required('bitcoind', {
     title: 'Bitcoin',
     icon: 'https://raw.githubusercontent.com/Start9Labs/bitcoin-core-startos/master/icon.svg',
   },
-  // Per-major, not one floor: a bare `>=28.4:17` would also admit 29.0 and
+  // Per-major, not one floor: a bare `>=28.4:29` would also admit 29.0 and
   // 30.0, which sort above it but predate the revision those lines need.
   versionRange:
-    '(>=28.4:17 && <29) || (>=29.4:4 && <30) || (>=30.3:4 && <31) || >=31.1:4',
+    '(>=28.4:29 && <29) || (>=29.4:16 && <30) || (>=30.3:16 && <31) || >=31.1:16 || >=#knotsprerdts:29.3:29',
   kind: 'running',
   healthChecks: ['bitcoind', 'sync-progress'],
 }).withInit(async (effects) => {
