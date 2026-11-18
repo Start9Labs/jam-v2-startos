@@ -3,7 +3,7 @@ import { manifest as bitcoindManifest } from 'bitcoin-core-startos/startos/manif
 import {
   rpcHostId,
   rpcPort,
-  rpcSubpath,
+  rpcVolumeId,
 } from 'bitcoin-core-startos/startos/utils'
 import { storeJson } from './fileModels/store.json'
 import { i18n } from './i18n'
@@ -53,8 +53,8 @@ export const main = sdk.setupMain(async ({ effects }) => {
       })
       .mountDependency<typeof bitcoindManifest>({
         dependencyId: 'bitcoind',
-        volumeId: 'main',
-        subpath: rpcSubpath,
+        volumeId: rpcVolumeId,
+        subpath: null,
         mountpoint: bitcoindMountpoint,
         readonly: true,
       }),

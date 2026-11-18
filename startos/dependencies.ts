@@ -9,7 +9,7 @@ const bitcoind = sdk.Dependency.required('bitcoind', {
     title: 'Bitcoin',
     icon: 'https://raw.githubusercontent.com/Start9Labs/bitcoin-core-startos/master/icon.svg',
   },
-  // Per-major floors: each line's first release with the rpc/ mount.
+  // Per-major floors: each line's first release with the public RPC volume.
   versionRange:
     '(>=28.4:42 && <29) || (>=29.5:4 && <30) || (>=30.4:4 && <31) || >=31.2:4 || >=#knotsprerdts:29.3:33 || >=#roots:29.4:1',
   kind: 'running',
