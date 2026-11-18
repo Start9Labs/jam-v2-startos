@@ -1,4 +1,5 @@
 import { utils } from '@start9labs/start-sdk'
+import { rpcCookieName } from 'bitcoin-core-startos/startos/utils'
 
 /** nginx inside the image serves the web UI here. */
 export const uiPort = 80
@@ -11,7 +12,7 @@ export const appUser = 'jam'
 export const dataDir = '/root/.joinmarket-ng'
 export const torDir = '/var/lib/tor'
 export const bitcoindMountpoint = '/mnt/bitcoind'
-export const cookiePath = `${bitcoindMountpoint}/.cookie`
+export const cookiePath = `${bitcoindMountpoint}/${rpcCookieName}`
 
 export function randomPassword() {
   return utils.getDefaultString({ charset: 'a-z,A-Z,1-9', len: 32 })

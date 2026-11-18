@@ -57,7 +57,7 @@ Two volumes, and the split inside `main` is deliberate.
 
 **Only the `data` subdirectory of `main` is mounted.** `store.json` sits at the volume root, outside that subpath, so the generated password is never visible to Jam itself.
 
-Bitcoin's data directory is mounted **read-only** at `/mnt/bitcoind`, which is how Jam reads the RPC cookie.
+Only Bitcoin's `public` volume is mounted, **read-only** at `/mnt/bitcoind`, which is how Jam reads the RPC cookie; Bitcoin's data directory and wallets are not visible to it.
 
 ## File Models
 
@@ -86,9 +86,9 @@ The address is omitted rather than faked while Bitcoin is absent, and the packag
 
 One, required, and with a configuration requirement of its own.
 
-| Dependency | Kind      | Health checks               | Mount                      | Why                                     |
-| ---------- | --------- | --------------------------- | -------------------------- | --------------------------------------- |
-| Bitcoin    | `running` | `bitcoind`, `sync-progress` | `/mnt/bitcoind`, read-only | Chain data over RPC, and the RPC cookie |
+| Dependency | Kind      | Health checks               | Mount                                  | Why                                     |
+| ---------- | --------- | --------------------------- | -------------------------------------- | --------------------------------------- |
+| Bitcoin    | `running` | `bitcoind`, `sync-progress` | `public` at `/mnt/bitcoind`, read-only | Chain data over RPC, and the RPC cookie |
 
 **Bitcoin must be archival with its wallet enabled, and the package raises a `critical` task on Bitcoin to enforce both settings** — see [Tasks](#tasks). JoinMarket uses Bitcoin's descriptor-wallet RPCs and rescans from genesis when it imports a wallet descriptor, which a pruned node refuses.
 
@@ -194,7 +194,7 @@ startos_managed_env_vars:
   - BITCOIN__RPC_URL
   - BITCOIN__RPC_COOKIE_FILE
 dependencies:
-  - bitcoind # required, archival; mounted read-only at /mnt/bitcoind
+  - bitcoind # required, archival; its public volume mounted read-only at /mnt/bitcoind
 interfaces:
   ui: { type: ui, port: 80 }
 actions:
